@@ -25,6 +25,9 @@
 #include "ssd1306.h"
 #include "max30102_for_stm32_hal.h"
 #include "stdlib.h"
+#include <stdio.h>
+#include <stdbool.h>
+#include "string.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -39,15 +42,35 @@
 
 /* Private macro -------------------------------------------------------------*/
 /* USER CODE BEGIN PM */
-
+#define RATE_SIZE 4
+#define BUFFER_SIZE 10
 /* USER CODE END PM */
 
 /* Private variables ---------------------------------------------------------*/
 I2C_HandleTypeDef hi2c1;
 
 /* USER CODE BEGIN PV */
+// Heart rate calculation variables
+uint8_t rates[RATE_SIZE];
+uint8_t rateSpot = 0;
+uint32_t lastBeat = 0;
+float beatsPerMinute = 0;
+int beatAvg = 0;
+
+// Peak detection variables
+uint32_t irValue = 0;
+uint32_t lastIRValue = 0;
+uint32_t delta = 0;
+bool fingerDetected = false;
+
+// Moving average for noise reduction
+uint32_t irBuffer[BUFFER_SIZE];
+uint8_t bufferIndex = 0;
+uint32_t irAverage = 0;
+
 // MAX30102 object
 max30102_t max30102;
+
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -61,6 +84,49 @@ static void MX_I2C1_Init(void);
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
 
+
+// Simple peak detection function
+bool checkForBeat(uint32_t sample) {
+    static uint32_t lastSample = 0;
+    static uint32_t threshold = 100000;
+    //static bool beatDetected = false;
+    static uint32_t lastBeatTime = 0;
+
+    // Check if finger is on sensor
+    if (sample < 50000) {
+        return false;
+    }
+
+    // Simple derivative-based peak detection
+    if (sample > lastSample && sample > threshold) {
+        uint32_t currentTime = HAL_GetTick();
+        if ((currentTime - lastBeatTime) > 300) { // Minimum 300ms between beats
+            lastBeatTime = currentTime;
+            //beatDetected = true;
+
+            // Adaptive threshold
+            threshold = sample * 0.8;
+
+            lastSample = sample;
+            return true;
+        }
+    }
+
+    lastSample = sample;
+    return false;
+}
+
+// Calculate moving average for noise reduction
+uint32_t calculateMovingAverage(uint32_t newValue) {
+    irBuffer[bufferIndex] = newValue;
+    bufferIndex = (bufferIndex + 1) % BUFFER_SIZE;
+
+    uint32_t sum = 0;
+    for (int i = 0; i < BUFFER_SIZE; i++) {
+        sum += irBuffer[i];
+    }
+    return sum / BUFFER_SIZE;
+}
 /* USER CODE END 0 */
 
 /**
@@ -93,68 +159,135 @@ int main(void)
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
   MX_I2C1_Init();
-  ssd1306_Init();
+
   /* USER CODE BEGIN 2 */
-  // Initialize MAX30102
+  // Initialize MAX30102 and SSD1306
+    ssd1306_Init();
     max30102_init(&max30102, &hi2c1);
-    max30102_reset(&max30102);
-    HAL_Delay(100);
+  max30102_reset(&max30102);
+  HAL_Delay(100);
 
-    max30102_clear_fifo(&max30102);
-    max30102_set_fifo_config(&max30102, max30102_smp_ave_8, 1, 7);
+  max30102_clear_fifo(&max30102);
+  max30102_set_fifo_config(&max30102, max30102_smp_ave_8, 1, 7);
 
-    // Optimized sensor settings for heart rate detection
-    max30102_set_led_pulse_width(&max30102, max30102_pw_16_bit);
-    max30102_set_adc_resolution(&max30102, max30102_adc_4096);
-    max30102_set_sampling_rate(&max30102, max30102_sr_100); // Lower sampling rate for HR
-    max30102_set_led_current_1(&max30102, 12.5); // Higher LED current for better signal
-    max30102_set_led_current_2(&max30102, 12.5);
+  // Optimized sensor settings for heart rate detection
+  max30102_set_led_pulse_width(&max30102, max30102_pw_16_bit);
+  max30102_set_adc_resolution(&max30102, max30102_adc_4096);
+  max30102_set_sampling_rate(&max30102, max30102_sr_100); // Lower sampling rate for HR
+  max30102_set_led_current_1(&max30102, 12.5); // Higher LED current for better signal
+  max30102_set_led_current_2(&max30102, 12.5);
 
-    // Enter SpO2 mode (uses both RED and IR LEDs)
-    max30102_set_mode(&max30102, max30102_spo2);
-    max30102_set_a_full(&max30102, 1);
+  // Enter SpO2 mode (uses both RED and IR LEDs)
+  max30102_set_mode(&max30102, max30102_spo2);
+  max30102_set_a_full(&max30102, 1);
 
-  uint8_t en_reg[2] = {0};
-  max30102_read(&max30102, 0x00, en_reg, 1);
 
+
+
+  // Display initialization message
   ssd1306_SetCursor(0, 0);
-  ssd1306_WriteString("Россия12", Font_14x15, 1);
-  ssd1306_SetCursor(0, 0);
+  ssd1306_WriteString("Heart Rate Monitor", Font_7x10, 1);
+  ssd1306_SetCursor(0, 15);
+  ssd1306_WriteString("Place finger on", Font_7x10, 1);
+  ssd1306_SetCursor(0, 25);
+  ssd1306_WriteString("sensor...", Font_7x10, 1);
   ssd1306_UpdateScreen();
-  /*HAL_Delay(100);
-  ssd1306_WriteString("               ", Font_14x15, 1);*/
 
-  //ssd1306_WriteString("1234", Font_14x15, 1);
-  ssd1306_UpdateScreen();
+  HAL_Delay(2000);
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
   while (1)
   {
-	  HAL_Delay(10);
-	  max30102_read_fifo(&max30102);
+	  // Read sensor data
+	      max30102_read_fifo(&max30102);
 
-	  /*uint8_t hr = max30102._ir_samples[0];
-	  char stringHr[8] ={0, 0, 0, 0, 0, 0, 0, 0};
-	  itoa(hr, stringHr, 10);*/
-	  ssd1306_SetCursor(0, 45);
-	  uint32_t irValue = max30102._ir_samples[0];
-	  if (irValue>50000){
-		  ssd1306_WriteString("Finger :)         ", Font_14x15, 1);
-	  } else {
-		  ssd1306_WriteString("No Finger :(", Font_14x15, 1);
-	  }
-	  ssd1306_UpdateScreen();
+	      // Get IR value for heart rate detection (IR is more stable than RED)
+	      irValue = max30102._ir_samples[0];
 
-	  if (max30102_has_interrupt(&max30102))
-	      {
-	        max30102_interrupt_handler(&max30102);
+	      // Apply moving average filter
+	      irAverage = calculateMovingAverage(irValue);
+
+	      // Check for finger presence
+	      fingerDetected = (irValue > 50000);
+
+	      // Clear display area
+	      ssd1306_SetCursor(0, 0);
+	      ssd1306_WriteString("                  ", Font_16x24, 1);
+	      ssd1306_SetCursor(0, 15);
+	      ssd1306_WriteString("                ", Font_16x24, 1);
+	      ssd1306_SetCursor(0, 30);
+	      ssd1306_WriteString("                ", Font_11x18, 1);
+	      ssd1306_SetCursor(0, 45);
+	      ssd1306_WriteString("                ", Font_11x18, 1);
+
+	      if (fingerDetected) {
+	          // Display finger detected status
+	          ssd1306_SetCursor(0, 0);
+	          ssd1306_WriteString("Finger: OK", Font_7x10, 1);
+
+	          // Check for heartbeat
+	          if (checkForBeat(irAverage)) {
+	              // Calculate time between beats
+	              delta = HAL_GetTick() - lastBeat;
+	              lastBeat = HAL_GetTick();
+
+	              // Calculate BPM
+	              beatsPerMinute = 60.0f / (delta / 1000.0f);
+
+	              // Validate BPM range (normal human range)
+	              if (beatsPerMinute < 255 && beatsPerMinute > 20) {
+	                  rates[rateSpot++] = (uint8_t)beatsPerMinute;
+	                  rateSpot %= RATE_SIZE;
+
+	                  // Calculate average BPM
+	                  beatAvg = 0;
+	                  for (uint8_t x = 0; x < RATE_SIZE; x++) {
+	                      beatAvg += rates[x];
+	                  }
+	                  beatAvg /= RATE_SIZE;
+	              }
+	          }
+
+	          // Display current BPM
+	          char bpmString[16];
+	          sprintf(bpmString, "BPM: %.0f", beatsPerMinute);
+	          ssd1306_SetCursor(0, 15);
+	          ssd1306_WriteString(bpmString, Font_7x10, 1);
+
+	          // Display average BPM
+	          char avgString[16];
+	          sprintf(avgString, "Avg: %d", beatAvg);
+	          ssd1306_SetCursor(0, 30);
+	          ssd1306_WriteString(avgString, Font_7x10, 1);
+
+	          // Display signal strength
+	          char signalString[16];
+	          sprintf(signalString, "Signal: %lu", irValue / 1000);
+	          ssd1306_SetCursor(0, 45);
+	          ssd1306_WriteString(signalString, Font_7x10, 1);
+
+	      } else {
+	          // No finger detected
+	          ssd1306_SetCursor(0, 0);
+	          ssd1306_WriteString("No finger", Font_7x10, 1);
+	          ssd1306_SetCursor(0, 15);
+	          ssd1306_WriteString("detected", Font_7x10, 1);
+
+	          // Reset heart rate values
+	          beatsPerMinute = 0;
+	          beatAvg = 0;
 	      }
-	  HAL_Delay(1000);
-	  ssd1306_SetCursor(0, 45);
-	  ssd1306_WriteString("        ", Font_14x15, 1);
-	  ssd1306_UpdateScreen();
+
+	      ssd1306_UpdateScreen();
+
+	      // Handle interrupts
+	      if (max30102_has_interrupt(&max30102)) {
+	          max30102_interrupt_handler(&max30102);
+	      }
+
+	      HAL_Delay(50); // Reduced delay for more responsive detection
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */

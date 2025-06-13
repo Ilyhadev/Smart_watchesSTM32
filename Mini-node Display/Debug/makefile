@@ -60,8 +60,8 @@ all: main-build
 main-build: Mini-node\ Display.elf secondary-outputs
 
 # Tool invocations
-Mini-node\ Display.elf Mini-node\ Display.map: $(OBJS) $(USER_OBJS) D:\Software\ for\ Embeded\Projects\Mini-node\ Display\STM32F103T8UX_FLASH.ld makefile objects.list $(OPTIONAL_TOOL_DEPS)
-	arm-none-eabi-gcc -o "Mini-node Display.elf" @"objects.list" $(USER_OBJS) $(LIBS) -mcpu=cortex-m3 -T"D:\Software for Embeded\Projects\Mini-node Display\STM32F103T8UX_FLASH.ld" --specs=nosys.specs -Wl,-Map="Mini-node Display.map" -Wl,--gc-sections -static --specs=nano.specs -mfloat-abi=soft -mthumb -Wl,--start-group -lc -lm -Wl,--end-group
+Mini-node\ Display.elf Mini-node\ Display.map: $(OBJS) $(USER_OBJS) D:\Software\ for\ Embeded\Projects\Smartwatches\Smart_watchesSTM32\Mini-node\ Display\STM32F103T8UX_FLASH.ld makefile objects.list $(OPTIONAL_TOOL_DEPS)
+	arm-none-eabi-gcc -o "Mini-node Display.elf" @"objects.list" $(USER_OBJS) $(LIBS) -mcpu=cortex-m3 -T"D:\Software for Embeded\Projects\Smartwatches\Smart_watchesSTM32\Mini-node Display\STM32F103T8UX_FLASH.ld" --specs=nosys.specs -Wl,-Map="Mini-node Display.map" -Wl,--gc-sections -static --specs=nano.specs -mfloat-abi=soft -mthumb -u _printf_float -Wl,--start-group -lc -lm -Wl,--end-group
 	@echo 'Finished building target: $@'
 	@echo ' '
 
