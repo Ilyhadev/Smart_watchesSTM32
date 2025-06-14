@@ -42,7 +42,7 @@
 
 /* Private macro -------------------------------------------------------------*/
 /* USER CODE BEGIN PM */
-#define RATE_SIZE 4
+#define RATE_SIZE 8
 #define BUFFER_SIZE 10
 /* USER CODE END PM */
 
@@ -67,7 +67,7 @@ bool fingerDetected = false;
 uint32_t irBuffer[BUFFER_SIZE];
 uint8_t bufferIndex = 0;
 uint32_t irAverage = 0;
-
+uint32_t lastSample = 0;    // Moved from checkForBeat()
 // MAX30102 object
 max30102_t max30102;
 
@@ -87,26 +87,19 @@ static void MX_I2C1_Init(void);
 
 // Simple peak detection function
 bool checkForBeat(uint32_t sample) {
-    static uint32_t lastSample = 0;
     static uint32_t threshold = 100000;
-    //static bool beatDetected = false;
-    static uint32_t lastBeatTime = 0;
 
-    // Check if finger is on sensor
     if (sample < 50000) {
         return false;
     }
 
-    // Simple derivative-based peak detection
+    // Dynamic threshold decay (5% per call)
+    threshold = threshold * 0.95 + sample * 0.05;
+
     if (sample > lastSample && sample > threshold) {
         uint32_t currentTime = HAL_GetTick();
-        if ((currentTime - lastBeatTime) > 300) { // Minimum 300ms between beats
-            lastBeatTime = currentTime;
-            //beatDetected = true;
-
-            // Adaptive threshold
-            threshold = sample * 0.8;
-
+        if ((currentTime - lastBeat) > 400) {  // Increased to 400ms
+            threshold = sample * 0.7;  // Reduced from 0.8 to 0.7
             lastSample = sample;
             return true;
         }
@@ -168,14 +161,14 @@ int main(void)
   HAL_Delay(100);
 
   max30102_clear_fifo(&max30102);
-  max30102_set_fifo_config(&max30102, max30102_smp_ave_8, 1, 7);
+  max30102_set_fifo_config(&max30102, max30102_smp_ave_16, 1, 7);
 
   // Optimized sensor settings for heart rate detection
   max30102_set_led_pulse_width(&max30102, max30102_pw_16_bit);
   max30102_set_adc_resolution(&max30102, max30102_adc_4096);
   max30102_set_sampling_rate(&max30102, max30102_sr_100); // Lower sampling rate for HR
-  max30102_set_led_current_1(&max30102, 12.5); // Higher LED current for better signal
-  max30102_set_led_current_2(&max30102, 12.5);
+  max30102_set_led_current_1(&max30102, 10); // Higher LED current for better signal
+  max30102_set_led_current_2(&max30102, 10);
 
   // Enter SpO2 mode (uses both RED and IR LEDs)
   max30102_set_mode(&max30102, max30102_spo2);
@@ -237,7 +230,7 @@ int main(void)
 	              beatsPerMinute = 60.0f / (delta / 1000.0f);
 
 	              // Validate BPM range (normal human range)
-	              if (beatsPerMinute < 255 && beatsPerMinute > 20) {
+	              if (beatsPerMinute < 255 && beatsPerMinute > 20 && beatsPerMinute<145) {
 	                  rates[rateSpot++] = (uint8_t)beatsPerMinute;
 	                  rateSpot %= RATE_SIZE;
 
