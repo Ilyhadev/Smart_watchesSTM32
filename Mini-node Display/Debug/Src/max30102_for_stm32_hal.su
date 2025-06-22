@@ -23,4 +23,4 @@
 ../Src/max30102_for_stm32_hal.c:342:6:max30102_set_fifo_config	24	static
 ../Src/max30102_for_stm32_hal.c:356:6:max30102_clear_fifo	24	static
 ../Src/max30102_for_stm32_hal.c:369:6:max30102_read_fifo	40	static
-../Src/max30102_for_stm32_hal.c:405:6:max30102_read_temp	24	static
+../Src/max30102_for_stm32_hal.c:406:6:max30102_read_temp	24	static

@@ -392,6 +392,7 @@ void max30102_read_fifo(max30102_t *obj)
         obj->_red_samples[i] = red_sample;
         max30102_plot(ir_sample, red_sample);
     }
+    obj->_sample_count = num_samples;
 }
 
 /**

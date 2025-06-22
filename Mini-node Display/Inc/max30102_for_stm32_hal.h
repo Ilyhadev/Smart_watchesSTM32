@@ -117,6 +117,7 @@ typedef struct max30102_t
     uint32_t _ir_samples[32];
     uint32_t _red_samples[32];
     uint8_t _interrupt_flag;
+    uint8_t _sample_count;
 } max30102_t;
 
 void max30102_plot(uint32_t ir_sample, uint32_t red_sample);

@@ -1,21 +1,22 @@
 /* USER CODE BEGIN Header */
 /**
-  ******************************************************************************
-  * @file           : main.c
-  * @brief          : Main program body
-  ******************************************************************************
-  * @attention
-  *
-  * Copyright (c) 2025 STMicroelectronics.
-  * All rights reserved.
-  *
-  * This software is licensed under terms that can be found in the LICENSE file
-  * in the root directory of this software component.
-  * If no LICENSE file comes with this software, it is provided AS-IS.
-  *
-  ******************************************************************************
-  */
+******************************************************************************
+* @file : main.c
+* @brief : Main program body - Improved PPG Heart Rate Detection with BPM Averaging
+******************************************************************************
+* @attention
+*
+* Copyright (c) 2025 STMicroelectronics.
+* All rights reserved.
+*
+* This software is licensed under terms that can be found in the LICENSE file
+* in the root directory of this software component.
+* If no LICENSE file comes with this software, it is provided AS-IS.
+*
+******************************************************************************
+*/
 /* USER CODE END Header */
+
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
 
@@ -28,265 +29,274 @@
 #include <stdio.h>
 #include <stdbool.h>
 #include "string.h"
+#include "math.h"
+#include <stdint.h>
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
 /* USER CODE BEGIN PTD */
-
 /* USER CODE END PTD */
 
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
-
+#define BUFFER_SIZE 100
+#define FILTER_SIZE 5
+#define MIN_PEAK_HEIGHT 50
+#define MIN_PEAK_DISTANCE 200
+#define SIGNAL_THRESHOLD 30
+#define BPM_AVERAGE_SIZE 10
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
 /* USER CODE BEGIN PM */
-#define RATE_SIZE 8
-#define BUFFER_SIZE 10
 /* USER CODE END PM */
 
 /* Private variables ---------------------------------------------------------*/
 I2C_HandleTypeDef hi2c1;
 
 /* USER CODE BEGIN PV */
-// Heart rate calculation variables
-uint8_t rates[RATE_SIZE];
-uint8_t rateSpot = 0;
-uint32_t lastBeat = 0;
-float beatsPerMinute = 0;
-int beatAvg = 0;
-
-// Peak detection variables
-uint32_t irValue = 0;
-uint32_t lastIRValue = 0;
-uint32_t delta = 0;
-bool fingerDetected = false;
-
-// Moving average for noise reduction
-uint32_t irBuffer[BUFFER_SIZE];
-uint8_t bufferIndex = 0;
-uint32_t irAverage = 0;
-uint32_t lastSample = 0;    // Moved from checkForBeat()
 // MAX30102 object
 max30102_t max30102;
-
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
 void SystemClock_Config(void);
 static void MX_GPIO_Init(void);
 static void MX_I2C1_Init(void);
-/* USER CODE BEGIN PFP */
 
+/* USER CODE BEGIN PFP */
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
 
+// Enhanced filtering with moving average
+uint32_t apply_moving_average(uint32_t new_sample, uint32_t *filter_buffer, int *filter_index) {
+    filter_buffer[*filter_index] = new_sample;
+    *filter_index = (*filter_index + 1) % FILTER_SIZE;
 
-// Simple peak detection function
-bool checkForBeat(uint32_t sample) {
-    static uint32_t threshold = 100000;
-
-    if (sample < 50000) {
-        return false;
+    uint64_t sum = 0;
+    for(int i = 0; i < FILTER_SIZE; i++) {
+        sum += filter_buffer[i];
     }
-
-    // Dynamic threshold decay (5% per call)
-    threshold = threshold * 0.95 + sample * 0.05;
-
-    if (sample > lastSample && sample > threshold) {
-        uint32_t currentTime = HAL_GetTick();
-        if ((currentTime - lastBeat) > 400) {  // Increased to 400ms
-            threshold = sample * 0.7;  // Reduced from 0.8 to 0.7
-            lastSample = sample;
-            return true;
-        }
-    }
-
-    lastSample = sample;
-    return false;
+    return sum / FILTER_SIZE;
 }
 
-// Calculate moving average for noise reduction
-uint32_t calculateMovingAverage(uint32_t newValue) {
-    irBuffer[bufferIndex] = newValue;
-    bufferIndex = (bufferIndex + 1) % BUFFER_SIZE;
+// Function to calculate BPM average
+float calculate_bpm_average(float *bpm_array, int count) {
+    if (count == 0) return 0.0;
 
-    uint32_t sum = 0;
-    for (int i = 0; i < BUFFER_SIZE; i++) {
-        sum += irBuffer[i];
+    float sum = 0.0;
+    for (int i = 0; i < count; i++) {
+        sum += bpm_array[i];
     }
-    return sum / BUFFER_SIZE;
+    return sum / count;
 }
+
 /* USER CODE END 0 */
 
 /**
-  * @brief  The application entry point.
-  * @retval int
-  */
+* @brief The application entry point.
+* @retval int
+*/
 int main(void)
 {
+    /* USER CODE BEGIN 1 */
+    /* USER CODE END 1 */
 
-  /* USER CODE BEGIN 1 */
+    /* MCU Configuration--------------------------------------------------------*/
+    /* Reset of all peripherals, Initializes the Flash interface and the Systick. */
+    HAL_Init();
 
-  /* USER CODE END 1 */
+    /* USER CODE BEGIN Init */
+    /* USER CODE END Init */
 
-  /* MCU Configuration--------------------------------------------------------*/
+    /* Configure the system clock */
+    SystemClock_Config();
 
-  /* Reset of all peripherals, Initializes the Flash interface and the Systick. */
-  HAL_Init();
+    /* USER CODE BEGIN SysInit */
+    /* USER CODE END SysInit */
 
-  /* USER CODE BEGIN Init */
+    /* Initialize all configured peripherals */
+    MX_GPIO_Init();
+    MX_I2C1_Init();
 
-  /* USER CODE END Init */
-
-  /* Configure the system clock */
-  SystemClock_Config();
-
-  /* USER CODE BEGIN SysInit */
-
-  /* USER CODE END SysInit */
-
-  /* Initialize all configured peripherals */
-  MX_GPIO_Init();
-  MX_I2C1_Init();
-
-  /* USER CODE BEGIN 2 */
-  // Initialize MAX30102 and SSD1306
+    /* USER CODE BEGIN 2 */
+    // Initialize MAX30102 and SSD1306
     ssd1306_Init();
     max30102_init(&max30102, &hi2c1);
-  max30102_reset(&max30102);
-  HAL_Delay(100);
+    max30102_reset(&max30102);
+    HAL_Delay(100); // Allow reset to complete
+    max30102_clear_fifo(&max30102);
 
-  max30102_clear_fifo(&max30102);
-  max30102_set_fifo_config(&max30102, max30102_smp_ave_16, 1, 7);
+    // FIFO configuration
+    max30102_set_fifo_config(&max30102, max30102_smp_ave_4, 1, 15);
 
-  // Optimized sensor settings for heart rate detection
-  max30102_set_led_pulse_width(&max30102, max30102_pw_16_bit);
-  max30102_set_adc_resolution(&max30102, max30102_adc_4096);
-  max30102_set_sampling_rate(&max30102, max30102_sr_100); // Lower sampling rate for HR
-  max30102_set_led_current_1(&max30102, 10); // Higher LED current for better signal
-  max30102_set_led_current_2(&max30102, 10);
+    // Sensor settings
+    max30102_set_led_pulse_width(&max30102, max30102_pw_16_bit);
+    max30102_set_adc_resolution(&max30102, max30102_adc_4096);
+    max30102_set_sampling_rate(&max30102, max30102_sr_100);
 
-  // Enter SpO2 mode (uses both RED and IR LEDs)
-  max30102_set_mode(&max30102, max30102_spo2);
-  max30102_set_a_full(&max30102, 1);
+    // LED current settings
+    max30102_set_led_current_1(&max30102, 10.0);
+    max30102_set_led_current_2(&max30102, 10.0);
 
+    // Enter SpO2 mode
+    max30102_set_mode(&max30102, max30102_spo2);
+    max30102_set_a_full(&max30102, 1);
+    max30102_set_ppg_rdy(&max30102, 1);
 
+    // Wait for sensor to start
+    HAL_Delay(1000);
 
+    // Signal processing variables
+    uint32_t ir_buffer[BUFFER_SIZE] = {0};
+    int buffer_index = 0;
+    uint32_t filtered_buffer[FILTER_SIZE] = {0};
+    int filter_index = 0;
 
-  // Display initialization message
-  ssd1306_SetCursor(0, 0);
-  ssd1306_WriteString("Heart Rate Monitor", Font_7x10, 1);
-  ssd1306_SetCursor(0, 15);
-  ssd1306_WriteString("Place finger on", Font_7x10, 1);
-  ssd1306_SetCursor(0, 25);
-  ssd1306_WriteString("sensor...", Font_7x10, 1);
-  ssd1306_UpdateScreen();
+    // Peak detection variables
+    uint32_t last_peak_time = 0;
+    float current_bpm = 0;
+    int32_t prev_signal = 0;
+    int32_t prev_prev_signal = 0;
+    bool peak_found = false;
 
-  HAL_Delay(2000);
-  /* USER CODE END 2 */
+    // BPM averaging variables
+    float bpm_array[BPM_AVERAGE_SIZE];
+    int bpm_counter = 0;
+    float average_bpm = 0.0;
+    bool array_filled = false;
 
-  /* Infinite loop */
-  /* USER CODE BEGIN WHILE */
-  while (1)
-  {
-	  // Read sensor data
-	      max30102_read_fifo(&max30102);
+    // Initialize BPM array
+    for (int i = 0; i < BPM_AVERAGE_SIZE; i++) {
+        bpm_array[i] = 0.0;
+    }
 
-	      // Get IR value for heart rate detection (IR is more stable than RED)
-	      irValue = max30102._ir_samples[0];
+    // Startup counter to fill buffer
+    uint32_t startup_samples = 0;
 
-	      // Apply moving average filter
-	      irAverage = calculateMovingAverage(irValue);
+    /* USER CODE END 2 */
 
-	      // Check for finger presence
-	      fingerDetected = (irValue > 50000);
+    /* Infinite loop */
+    /* USER CODE BEGIN WHILE */
+    while (1)
+    {
+        // Read FIFO
+        max30102_read_fifo(&max30102);
+        uint32_t ir_value = max30102._ir_samples[0];
 
-	      // Clear display area
-	      ssd1306_SetCursor(0, 0);
-	      ssd1306_WriteString("                  ", Font_16x24, 1);
-	      ssd1306_SetCursor(0, 15);
-	      ssd1306_WriteString("                ", Font_16x24, 1);
-	      ssd1306_SetCursor(0, 30);
-	      ssd1306_WriteString("                ", Font_11x18, 1);
-	      ssd1306_SetCursor(0, 45);
-	      ssd1306_WriteString("                ", Font_11x18, 1);
+        // Apply moving average filter
+        uint32_t filtered_value = apply_moving_average(ir_value, filtered_buffer, &filter_index);
 
-	      if (fingerDetected) {
-	          // Display finger detected status
-	          ssd1306_SetCursor(0, 0);
-	          ssd1306_WriteString("Finger: OK", Font_7x10, 1);
+        // Store in circular buffer for baseline calculation
+        ir_buffer[buffer_index++] = filtered_value;
+        if (buffer_index >= BUFFER_SIZE) buffer_index = 0;
 
-	          // Check for heartbeat
-	          if (checkForBeat(irAverage)) {
-	              // Calculate time between beats
-	              delta = HAL_GetTick() - lastBeat;
-	              lastBeat = HAL_GetTick();
+        // Skip processing until buffer is filled
+        if (startup_samples < BUFFER_SIZE) {
+            startup_samples++;
+            HAL_Delay(10);
+            continue;
+        }
 
-	              // Calculate BPM
-	              beatsPerMinute = 60.0f / (delta / 1000.0f);
+        // Calculate baseline as average
+        uint64_t sum = 0;
+        for (int i = 0; i < BUFFER_SIZE; i++) {
+            sum += ir_buffer[i];
+        }
+        uint32_t baseline = sum / BUFFER_SIZE;
 
-	              // Validate BPM range (normal human range)
-	              if (beatsPerMinute < 255 && beatsPerMinute > 20 && beatsPerMinute<145) {
-	                  rates[rateSpot++] = (uint8_t)beatsPerMinute;
-	                  rateSpot %= RATE_SIZE;
+        // AC component (signal minus baseline)
+        int32_t ir_ac = (int32_t)filtered_value - (int32_t)baseline;
 
-	                  // Calculate average BPM
-	                  beatAvg = 0;
-	                  for (uint8_t x = 0; x < RATE_SIZE; x++) {
-	                      beatAvg += rates[x];
-	                  }
-	                  beatAvg /= RATE_SIZE;
-	              }
-	          }
+        uint32_t current_time = HAL_GetTick();
 
-	          // Display current BPM
-	          char bpmString[16];
-	          sprintf(bpmString, "BPM: %.0f", beatsPerMinute);
-	          ssd1306_SetCursor(0, 15);
-	          ssd1306_WriteString(bpmString, Font_7x10, 1);
+        // 3-point peak detection
+        if (ir_ac > prev_signal && prev_signal > prev_prev_signal &&
+            ir_ac > SIGNAL_THRESHOLD && !peak_found) {
 
-	          // Display average BPM
-	          char avgString[16];
-	          sprintf(avgString, "Avg: %d", beatAvg);
-	          ssd1306_SetCursor(0, 30);
-	          ssd1306_WriteString(avgString, Font_7x10, 1);
+            // Peak detected at previous point
+            if (current_time - last_peak_time > MIN_PEAK_DISTANCE) {
 
-	          // Display signal strength
-	          char signalString[16];
-	          sprintf(signalString, "Signal: %lu", irValue / 1000);
-	          ssd1306_SetCursor(0, 45);
-	          ssd1306_WriteString(signalString, Font_7x10, 1);
+                // Calculate BPM
+                if (last_peak_time > 0) {
+                    uint32_t interval = current_time - last_peak_time;
+                    current_bpm = 60000.0 / interval;
 
-	      } else {
-	          // No finger detected
-	          ssd1306_SetCursor(0, 0);
-	          ssd1306_WriteString("No finger", Font_7x10, 1);
-	          ssd1306_SetCursor(0, 15);
-	          ssd1306_WriteString("detected", Font_7x10, 1);
+                    // Validate BPM range (40-200 BPM)
+                    if (current_bpm >= 40 && current_bpm <= 200) {
 
-	          // Reset heart rate values
-	          beatsPerMinute = 0;
-	          beatAvg = 0;
-	      }
+                        // Add to BPM array for averaging
+                        bpm_array[bpm_counter] = current_bpm;
+                        bpm_counter++;
 
-	      ssd1306_UpdateScreen();
+                        // Check if array is full
+                        if (bpm_counter >= BPM_AVERAGE_SIZE) {
+                            bpm_counter = 0;
+                            array_filled = true;
+                        }
 
-	      // Handle interrupts
-	      if (max30102_has_interrupt(&max30102)) {
-	          max30102_interrupt_handler(&max30102);
-	      }
+                        // Calculate average BPM
+                        int count_for_average = array_filled ? BPM_AVERAGE_SIZE : bpm_counter;
+                        if (count_for_average > 0) {
+                            average_bpm = calculate_bpm_average(bpm_array, count_for_average);
+                        }
+                    }
+                }
+                last_peak_time = current_time;
+                peak_found = true;
+            }
+        } else if (ir_ac < prev_signal) {
+            peak_found = false;
+        }
 
-	      HAL_Delay(50); // Reduced delay for more responsive detection
-    /* USER CODE END WHILE */
+        // Update signal history
+        prev_prev_signal = prev_signal;
+        prev_signal = ir_ac;
 
-    /* USER CODE BEGIN 3 */
-  }
-  /* USER CODE END 3 */
+        // Display on OLED
+        ssd1306_Fill(0); // Clear screen
+
+        // Display current signal
+        char signal_str[32];
+        snprintf(signal_str, sizeof(signal_str), "Signal: %ld", ir_ac);
+        ssd1306_SetCursor(0, 0);
+        ssd1306_WriteString(signal_str, Font_7x10, White);
+
+        // Display current BPM
+        if (current_bpm > 0) {
+            char bpm_str[32];
+            snprintf(bpm_str, sizeof(bpm_str), "BPM: %.0f", current_bpm);
+            ssd1306_SetCursor(0, 15);
+            ssd1306_WriteString(bpm_str, Font_7x10, White);
+        }
+
+        // Display average BPM
+        if (average_bpm > 0) {
+            char avg_bpm_str[32];
+            snprintf(avg_bpm_str, sizeof(avg_bpm_str), "Avg: %.1f", average_bpm);
+            ssd1306_SetCursor(0, 30);
+            ssd1306_WriteString(avg_bpm_str, Font_7x10, White);
+        }
+
+        // Display sample count for averaging
+        char count_str[32];
+        int display_count = array_filled ? BPM_AVERAGE_SIZE : bpm_counter;
+        snprintf(count_str, sizeof(count_str), "Samples: %d", display_count);
+        ssd1306_SetCursor(0, 45);
+        ssd1306_WriteString(count_str, Font_7x10, White);
+
+        ssd1306_UpdateScreen();
+        HAL_Delay(10);
+
+        /* USER CODE END WHILE */
+
+        /* USER CODE BEGIN 3 */
+    }
+    /* USER CODE END 3 */
 }
+
 
 /**
   * @brief System Clock Configuration
@@ -298,7 +308,7 @@ void SystemClock_Config(void)
   RCC_ClkInitTypeDef RCC_ClkInitStruct = {0};
 
   /** Initializes the RCC Oscillators according to the specified parameters
-  * in the RCC_OscInitTypeDef structure.
+  * in the RCC_OscInitStruct structure.
   */
   RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSE;
   RCC_OscInitStruct.HSEState = RCC_HSE_ON;
@@ -334,13 +344,10 @@ void SystemClock_Config(void)
   */
 static void MX_I2C1_Init(void)
 {
-
   /* USER CODE BEGIN I2C1_Init 0 */
-
   /* USER CODE END I2C1_Init 0 */
 
   /* USER CODE BEGIN I2C1_Init 1 */
-
   /* USER CODE END I2C1_Init 1 */
   hi2c1.Instance = I2C1;
   hi2c1.Init.ClockSpeed = 400000;
@@ -356,9 +363,7 @@ static void MX_I2C1_Init(void)
     Error_Handler();
   }
   /* USER CODE BEGIN I2C1_Init 2 */
-
   /* USER CODE END I2C1_Init 2 */
-
 }
 
 /**
@@ -369,7 +374,6 @@ static void MX_I2C1_Init(void)
 static void MX_GPIO_Init(void)
 {
   /* USER CODE BEGIN MX_GPIO_Init_1 */
-
   /* USER CODE END MX_GPIO_Init_1 */
 
   /* GPIO Ports Clock Enable */
@@ -378,12 +382,10 @@ static void MX_GPIO_Init(void)
   __HAL_RCC_GPIOB_CLK_ENABLE();
 
   /* USER CODE BEGIN MX_GPIO_Init_2 */
-
   /* USER CODE END MX_GPIO_Init_2 */
 }
 
 /* USER CODE BEGIN 4 */
-
 /* USER CODE END 4 */
 
 /**
