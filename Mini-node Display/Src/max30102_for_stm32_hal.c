@@ -285,8 +285,10 @@ void max30102_set_adc_resolution(max30102_t *obj, max30102_adc_t adc)
  */
 void max30102_set_led_current_1(max30102_t *obj, float ma)
 {
-    uint8_t pa = ma / 0.2;
-    max30102_write(obj, MAX30102_LED_IR_PA1, &pa, 1);
+	if (ma<51){
+		uint8_t pa = ma / 0.2;
+		max30102_write(obj, MAX30102_LED_IR_PA1, &pa, 1);
+	}
 }
 
 /**
@@ -390,6 +392,7 @@ void max30102_read_fifo(max30102_t *obj)
         obj->_red_samples[i] = red_sample;
         max30102_plot(ir_sample, red_sample);
     }
+    obj->_sample_count = num_samples;
 }
 
 /**
