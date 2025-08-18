@@ -1,0 +1,2 @@
+../Src/mpu6050_scripts.c:22:6:configure_MPU6050	1
+../Src/mpu6050_scripts.c:30:8:render_accel	1

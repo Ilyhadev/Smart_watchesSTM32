@@ -1,0 +1,2 @@
+../Src/mpu6050_scripts.c:22:6:configure_MPU6050	32	static
+../Src/mpu6050_scripts.c:30:8:render_accel	120	static

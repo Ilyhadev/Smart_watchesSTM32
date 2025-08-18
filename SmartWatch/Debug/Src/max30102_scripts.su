@@ -1,0 +1,5 @@
+../Src/max30102_scripts.c:48:10:apply_moving_average	56	static
+../Src/max30102_scripts.c:59:7:calculate_bpm_average	24	static
+../Src/max30102_scripts.c:69:6:configure_MAX30102	16	static
+../Src/max30102_scripts.c:98:8:calc_curr_avg_bpm	64	static
+../Src/max30102_scripts.c:177:8:render_bpm	56	static

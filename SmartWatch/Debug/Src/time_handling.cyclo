@@ -1,0 +1,5 @@
+../Src/time_handling.c:20:6:set_time	2
+../Src/time_handling.c:30:6:set_date	2
+../Src/time_handling.c:44:6:get_time_date	1
+../Src/time_handling.c:61:6:parseTime	1
+../Src/time_handling.c:69:6:render_time	1
