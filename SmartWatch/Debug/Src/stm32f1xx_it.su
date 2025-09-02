@@ -9,4 +9,5 @@
 ../Src/stm32f1xx_it.c:185:6:SysTick_Handler	8	static
 ../Src/stm32f1xx_it.c:206:6:USART1_IRQHandler	8	static
 ../Src/stm32f1xx_it.c:220:6:USART2_IRQHandler	8	static
-../Src/stm32f1xx_it.c:234:6:RTC_Alarm_IRQHandler	8	static
+../Src/stm32f1xx_it.c:234:6:EXTI15_10_IRQHandler	8	static
+../Src/stm32f1xx_it.c:249:6:RTC_Alarm_IRQHandler	8	static

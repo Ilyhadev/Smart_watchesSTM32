@@ -57,6 +57,11 @@ UART_HandleTypeDef huart1;
 UART_HandleTypeDef huart2;
 
 /* USER CODE BEGIN PV */
+enum UI_state {
+	TIME,
+	BPM,
+	ACCEL
+} ui_state = TIME;
 
 /* USER CODE END PV */
 
@@ -120,8 +125,23 @@ int main(void)
   /* USER CODE BEGIN WHILE */
     while (1)
     {
-    	render_time();
-        HAL_Delay(100);
+    	// Disable interrupts on moment of reading of the shared variable
+    	// Avoid racing condition in case if two buttons pressed simultaneously
+    	__disable_irq();
+    	switch (ui_state) {
+
+    	case TIME:
+    		render_time();
+    		break;
+    	case BPM:
+    		render_bpm();
+    		break;
+    	case ACCEL:
+    		render_accel();
+    		break;
+    	}
+    	__enable_irq();
+        HAL_Delay(1);
 
     /* USER CODE END WHILE */
 
@@ -338,6 +358,7 @@ static void MX_USART2_UART_Init(void)
   */
 static void MX_GPIO_Init(void)
 {
+  GPIO_InitTypeDef GPIO_InitStruct = {0};
   /* USER CODE BEGIN MX_GPIO_Init_1 */
   /* USER CODE END MX_GPIO_Init_1 */
 
@@ -345,6 +366,16 @@ static void MX_GPIO_Init(void)
   __HAL_RCC_GPIOC_CLK_ENABLE();
   __HAL_RCC_GPIOA_CLK_ENABLE();
   __HAL_RCC_GPIOB_CLK_ENABLE();
+
+  /*Configure GPIO pins : Left_UI_Pin Right_UI_Pin */
+  GPIO_InitStruct.Pin = Left_UI_Pin|Right_UI_Pin;
+  GPIO_InitStruct.Mode = GPIO_MODE_IT_RISING;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
+
+  /* EXTI interrupt init*/
+  HAL_NVIC_SetPriority(EXTI15_10_IRQn, 4, 0);
+  HAL_NVIC_EnableIRQ(EXTI15_10_IRQn);
 
   /* USER CODE BEGIN MX_GPIO_Init_2 */
   /* USER CODE END MX_GPIO_Init_2 */
@@ -358,7 +389,6 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart) {
 	            // Only store if we're expecting more data
 	            if (toFill < 7) {
 	                hhmmss[toFill] = prevNum;
-	                HAL_UART_Transmit(&huart2, &hhmmss[6], 1, 10);
 	                toFill++;
 	                prevNum = 0;
 	                if (toFill == 7) {
@@ -375,6 +405,25 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart) {
 	        HAL_UART_Receive_IT(&huart1, uart_rx_buf, 1);
 
 	    }
+}
+
+void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin){
+  if(GPIO_Pin==Left_UI_Pin) {
+    ui_state = (ui_state + 1) % 3;
+  } else if(GPIO_Pin==Right_UI_Pin) {
+	  if (ui_state == 0) {
+		  // Then set to tail and return from callback
+		  ui_state = 2;
+		  HAL_UART_Transmit(&huart2, &ui_state, 1, 10);
+		  return;
+	  }
+    ui_state = (ui_state - 1) % 3;
+  }else {
+	  // Do nothing
+	    __NOP();
+	  }
+  HAL_UART_Transmit(&huart2, &ui_state, 1, 10);
+
 }
 /* USER CODE END 4 */
 

@@ -96,7 +96,7 @@ void configure_MAX30102 (void) {
 }
 
 float* calc_curr_avg_bpm (void) {
-	static float curr_avg_bpm[2] = {0.0, 0.0};
+	static float curr_avg_ir[3] = {0.0, 0.0, 0.0};
 	// Read FIFO
 	max30102_read_fifo(&max30102);
 	uint32_t ir_value = max30102._ir_samples[0];
@@ -169,34 +169,39 @@ float* calc_curr_avg_bpm (void) {
 	// Update signal history
 	prev_prev_signal = prev_signal;
 	prev_signal = ir_ac;
-	curr_avg_bpm[0] = current_bpm;
-	curr_avg_bpm[1] = average_bpm;
-	return curr_avg_bpm;
+	curr_avg_ir[0] = current_bpm;
+	curr_avg_ir[1] = average_bpm;
+	curr_avg_ir[2] = ir_value;
+	return curr_avg_ir;
 }
 
 float* render_bpm (void) {
-	float* curr_avg_bpm;
+	float* curr_avg_ir;
 	// Potentially dangerous
-	curr_avg_bpm = calc_curr_avg_bpm();
+	curr_avg_ir = calc_curr_avg_bpm();
 	// Display on OLED
 	ssd1306_Fill(0); // Clear screen
+	if (curr_avg_ir[2] < 10000) {
+		ssd1306_SetCursor(0, 0);
+		ssd1306_WriteString("No finger detected!", Font_7x10, White);
+	} else {
+		// Display current BPM
+		if (curr_avg_ir[0] > 0) {
+			char bpm_str[32];
+			snprintf(bpm_str, sizeof(bpm_str), "BPM: %.0f", curr_avg_ir[0]);
+			ssd1306_SetCursor(0, 15);
+			ssd1306_WriteString(bpm_str, Font_7x10, White);
+		}
 
-	// Display current BPM
-	if (curr_avg_bpm[0] > 0) {
-		char bpm_str[32];
-		snprintf(bpm_str, sizeof(bpm_str), "BPM: %.0f", curr_avg_bpm[0]);
-		ssd1306_SetCursor(0, 15);
-		ssd1306_WriteString(bpm_str, Font_7x10, White);
-	}
-
-	// Display average BPM
-	if (curr_avg_bpm[1] > 0) {
-		char avg_bpm_str[32];
-		snprintf(avg_bpm_str, sizeof(avg_bpm_str), "Avg: %.1f", curr_avg_bpm[1]);
-		ssd1306_SetCursor(0, 30);
-		ssd1306_WriteString(avg_bpm_str, Font_7x10, White);
+		// Display average BPM
+		if (curr_avg_ir[1] > 0) {
+			char avg_bpm_str[32];
+			snprintf(avg_bpm_str, sizeof(avg_bpm_str), "Avg: %.1f", curr_avg_ir[1]);
+			ssd1306_SetCursor(0, 30);
+			ssd1306_WriteString(avg_bpm_str, Font_7x10, White);
+		}
 	}
 
 	ssd1306_UpdateScreen();
-	return curr_avg_bpm;
+	return curr_avg_ir;
 }
