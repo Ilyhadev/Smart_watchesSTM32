@@ -5,6 +5,7 @@
 
 # Add inputs and outputs from these tool invocations to the build variables 
 C_SRCS += \
+../Src/freertos.c \
 ../Src/main.c \
 ../Src/max30102_for_stm32_hal.c \
 ../Src/max30102_scripts.c \
@@ -13,6 +14,7 @@ C_SRCS += \
 ../Src/ssd1306.c \
 ../Src/ssd1306_fonts.c \
 ../Src/stm32f1xx_hal_msp.c \
+../Src/stm32f1xx_hal_timebase_tim.c \
 ../Src/stm32f1xx_it.c \
 ../Src/syscalls.c \
 ../Src/sysmem.c \
@@ -20,6 +22,7 @@ C_SRCS += \
 ../Src/time_handling.c 
 
 OBJS += \
+./Src/freertos.o \
 ./Src/main.o \
 ./Src/max30102_for_stm32_hal.o \
 ./Src/max30102_scripts.o \
@@ -28,6 +31,7 @@ OBJS += \
 ./Src/ssd1306.o \
 ./Src/ssd1306_fonts.o \
 ./Src/stm32f1xx_hal_msp.o \
+./Src/stm32f1xx_hal_timebase_tim.o \
 ./Src/stm32f1xx_it.o \
 ./Src/syscalls.o \
 ./Src/sysmem.o \
@@ -35,6 +39,7 @@ OBJS += \
 ./Src/time_handling.o 
 
 C_DEPS += \
+./Src/freertos.d \
 ./Src/main.d \
 ./Src/max30102_for_stm32_hal.d \
 ./Src/max30102_scripts.d \
@@ -43,6 +48,7 @@ C_DEPS += \
 ./Src/ssd1306.d \
 ./Src/ssd1306_fonts.d \
 ./Src/stm32f1xx_hal_msp.d \
+./Src/stm32f1xx_hal_timebase_tim.d \
 ./Src/stm32f1xx_it.d \
 ./Src/syscalls.d \
 ./Src/sysmem.d \
@@ -52,12 +58,12 @@ C_DEPS += \
 
 # Each subdirectory must supply rules for building sources it contributes
 Src/%.o Src/%.su Src/%.cyclo: ../Src/%.c Src/subdir.mk
-	arm-none-eabi-gcc "$<" -mcpu=cortex-m3 -std=gnu11 -g3 -DDEBUG -DUSE_HAL_DRIVER -DSTM32F103xB -c -I../Inc -I../Drivers/STM32F1xx_HAL_Driver/Inc -I../Drivers/STM32F1xx_HAL_Driver/Inc/Legacy -I../Drivers/CMSIS/Device/ST/STM32F1xx/Include -I../Drivers/CMSIS/Include -O0 -ffunction-sections -fdata-sections -Wall -finput-charset=UTF-8 -fexec-charset=cp1251 -u _printf_float -fstack-usage -fcyclomatic-complexity -MMD -MP -MF"$(@:%.o=%.d)" -MT"$@" --specs=nano.specs -mfloat-abi=soft -mthumb -o "$@"
+	arm-none-eabi-gcc "$<" -mcpu=cortex-m3 -std=gnu11 -g3 -DDEBUG -DUSE_HAL_DRIVER -DSTM32F103xB -c -I../Inc -I../Drivers/STM32F1xx_HAL_Driver/Inc -I../Drivers/STM32F1xx_HAL_Driver/Inc/Legacy -I../Drivers/CMSIS/Device/ST/STM32F1xx/Include -I../Drivers/CMSIS/Include -I../Middlewares/Third_Party/FreeRTOS/Source/include -I../Middlewares/Third_Party/FreeRTOS/Source/CMSIS_RTOS -I../Middlewares/Third_Party/FreeRTOS/Source/portable/GCC/ARM_CM3 -O0 -ffunction-sections -fdata-sections -Wall -finput-charset=UTF-8 -fexec-charset=cp1251 -u _printf_float -fstack-usage -fcyclomatic-complexity -MMD -MP -MF"$(@:%.o=%.d)" -MT"$@" --specs=nano.specs -mfloat-abi=soft -mthumb -o "$@"
 
 clean: clean-Src
 
 clean-Src:
-	-$(RM) ./Src/main.cyclo ./Src/main.d ./Src/main.o ./Src/main.su ./Src/max30102_for_stm32_hal.cyclo ./Src/max30102_for_stm32_hal.d ./Src/max30102_for_stm32_hal.o ./Src/max30102_for_stm32_hal.su ./Src/max30102_scripts.cyclo ./Src/max30102_scripts.d ./Src/max30102_scripts.o ./Src/max30102_scripts.su ./Src/mpu6050.cyclo ./Src/mpu6050.d ./Src/mpu6050.o ./Src/mpu6050.su ./Src/mpu6050_scripts.cyclo ./Src/mpu6050_scripts.d ./Src/mpu6050_scripts.o ./Src/mpu6050_scripts.su ./Src/ssd1306.cyclo ./Src/ssd1306.d ./Src/ssd1306.o ./Src/ssd1306.su ./Src/ssd1306_fonts.cyclo ./Src/ssd1306_fonts.d ./Src/ssd1306_fonts.o ./Src/ssd1306_fonts.su ./Src/stm32f1xx_hal_msp.cyclo ./Src/stm32f1xx_hal_msp.d ./Src/stm32f1xx_hal_msp.o ./Src/stm32f1xx_hal_msp.su ./Src/stm32f1xx_it.cyclo ./Src/stm32f1xx_it.d ./Src/stm32f1xx_it.o ./Src/stm32f1xx_it.su ./Src/syscalls.cyclo ./Src/syscalls.d ./Src/syscalls.o ./Src/syscalls.su ./Src/sysmem.cyclo ./Src/sysmem.d ./Src/sysmem.o ./Src/sysmem.su ./Src/system_stm32f1xx.cyclo ./Src/system_stm32f1xx.d ./Src/system_stm32f1xx.o ./Src/system_stm32f1xx.su ./Src/time_handling.cyclo ./Src/time_handling.d ./Src/time_handling.o ./Src/time_handling.su
+	-$(RM) ./Src/freertos.cyclo ./Src/freertos.d ./Src/freertos.o ./Src/freertos.su ./Src/main.cyclo ./Src/main.d ./Src/main.o ./Src/main.su ./Src/max30102_for_stm32_hal.cyclo ./Src/max30102_for_stm32_hal.d ./Src/max30102_for_stm32_hal.o ./Src/max30102_for_stm32_hal.su ./Src/max30102_scripts.cyclo ./Src/max30102_scripts.d ./Src/max30102_scripts.o ./Src/max30102_scripts.su ./Src/mpu6050.cyclo ./Src/mpu6050.d ./Src/mpu6050.o ./Src/mpu6050.su ./Src/mpu6050_scripts.cyclo ./Src/mpu6050_scripts.d ./Src/mpu6050_scripts.o ./Src/mpu6050_scripts.su ./Src/ssd1306.cyclo ./Src/ssd1306.d ./Src/ssd1306.o ./Src/ssd1306.su ./Src/ssd1306_fonts.cyclo ./Src/ssd1306_fonts.d ./Src/ssd1306_fonts.o ./Src/ssd1306_fonts.su ./Src/stm32f1xx_hal_msp.cyclo ./Src/stm32f1xx_hal_msp.d ./Src/stm32f1xx_hal_msp.o ./Src/stm32f1xx_hal_msp.su ./Src/stm32f1xx_hal_timebase_tim.cyclo ./Src/stm32f1xx_hal_timebase_tim.d ./Src/stm32f1xx_hal_timebase_tim.o ./Src/stm32f1xx_hal_timebase_tim.su ./Src/stm32f1xx_it.cyclo ./Src/stm32f1xx_it.d ./Src/stm32f1xx_it.o ./Src/stm32f1xx_it.su ./Src/syscalls.cyclo ./Src/syscalls.d ./Src/syscalls.o ./Src/syscalls.su ./Src/sysmem.cyclo ./Src/sysmem.d ./Src/sysmem.o ./Src/sysmem.su ./Src/system_stm32f1xx.cyclo ./Src/system_stm32f1xx.d ./Src/system_stm32f1xx.o ./Src/system_stm32f1xx.su ./Src/time_handling.cyclo ./Src/time_handling.d ./Src/time_handling.o ./Src/time_handling.su
 
 .PHONY: clean-Src
 
