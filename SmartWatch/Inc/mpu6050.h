@@ -86,16 +86,16 @@ typedef struct {
 } accelerometer_t;
 
 typedef struct {
-    float Gxyz [3];
-    // For manual six position calibrations
-    float offsetXYZ[3];
-    float scaleXYZ[3];
+   float Gxyz [3];
+   // For manual six position calibrations
+   float offsetXYZ[3];
+   float scaleXYZ[3];
 } gyroscope_t;
 
 typedef struct mpu6050_t {
     accelerometer_t accelerometer;
-    gyroscope_t gyroscope;
-    float temperature;
+   gyroscope_t gyroscope;
+   float temperature;
     I2C_HandleTypeDef *_I2C;
 } mpu6050_t;
 

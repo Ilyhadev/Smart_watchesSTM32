@@ -61,7 +61,7 @@ enum UI_state {
 	TIME,
 	BPM,
 	ACCEL
-} ui_state = TIME;
+} ui_state = ACCEL;
 
 /* USER CODE END PV */
 
@@ -125,22 +125,18 @@ int main(void)
   /* USER CODE BEGIN WHILE */
     while (1)
     {
-    	// Disable interrupts on moment of reading of the shared variable
-    	// Avoid racing condition in case if two buttons pressed simultaneously
-    	__disable_irq();
     	switch (ui_state) {
 
-    	case TIME:
-    		render_time();
-    		break;
-    	case BPM:
-    		render_bpm();
-    		break;
+      case TIME:
+        render_time();
+        break;
+      case BPM:
+        render_bpm();
+        break;
     	case ACCEL:
     		render_accel();
     		break;
     	}
-    	__enable_irq();
         HAL_Delay(1);
 
     /* USER CODE END WHILE */
@@ -373,10 +369,6 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
 
-  /* EXTI interrupt init*/
-  HAL_NVIC_SetPriority(EXTI15_10_IRQn, 4, 0);
-  HAL_NVIC_EnableIRQ(EXTI15_10_IRQn);
-
   /* USER CODE BEGIN MX_GPIO_Init_2 */
   /* USER CODE END MX_GPIO_Init_2 */
 }
@@ -384,7 +376,6 @@ static void MX_GPIO_Init(void)
 /* USER CODE BEGIN 4 */
 void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart) {
 	 if (huart->Instance == USART1) {
-		 // Echo back for debugging (optional)
 	        if (uart_rx_buf[0] == '\n') {
 	            // Only store if we're expecting more data
 	            if (toFill < 7) {
@@ -428,6 +419,28 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin){
 /* USER CODE END 4 */
 
 /**
+  * @brief  Period elapsed callback in non blocking mode
+  * @note   This function is called  when TIM1 interrupt took place, inside
+  * HAL_TIM_IRQHandler(). It makes a direct call to HAL_IncTick() to increment
+  * a global variable "uwTick" used as application time base.
+  * @param  htim : TIM handle
+  * @retval None
+  */
+void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
+{
+  /* USER CODE BEGIN Callback 0 */
+
+  /* USER CODE END Callback 0 */
+  if (htim->Instance == TIM1)
+  {
+    HAL_IncTick();
+  }
+  /* USER CODE BEGIN Callback 1 */
+
+  /* USER CODE END Callback 1 */
+}
+
+/**
   * @brief  This function is executed in case of error occurrence.
   * @retval None
   */
@@ -441,8 +454,7 @@ void Error_Handler(void)
   }
   /* USER CODE END Error_Handler_Debug */
 }
-
-#ifdef  USE_FULL_ASSERT
+#ifdef USE_FULL_ASSERT
 /**
   * @brief  Reports the name of the source file and the source line number
   *         where the assert_param error has occurred.

@@ -1,0 +1,6 @@
+/home/ilia/Desktop/STMProj/Smart_watchesSTM32/SmartWatch/build/CMakeFiles/SmartWatch.dir
+/home/ilia/Desktop/STMProj/Smart_watchesSTM32/SmartWatch/build/CMakeFiles/edit_cache.dir
+/home/ilia/Desktop/STMProj/Smart_watchesSTM32/SmartWatch/build/CMakeFiles/rebuild_cache.dir
+/home/ilia/Desktop/STMProj/Smart_watchesSTM32/SmartWatch/build/cmake/stm32cubemx/CMakeFiles/STM32_Drivers.dir
+/home/ilia/Desktop/STMProj/Smart_watchesSTM32/SmartWatch/build/cmake/stm32cubemx/CMakeFiles/edit_cache.dir
+/home/ilia/Desktop/STMProj/Smart_watchesSTM32/SmartWatch/build/cmake/stm32cubemx/CMakeFiles/rebuild_cache.dir
