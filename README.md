@@ -41,9 +41,10 @@ https://github.com/Ilyhadev/MPU6050_-GY-521-
 For better quality please follow [this](https://miro.com/app/board/uXjVG1lzhco=/?share_link_id=381544303495) link on miro board.
 
 # Functionality show
-- Please check readme_data/bluetooth_communication.mp4 to see how smartphone communicates with Smartwatches
-- Please check readme_data/bpm_counting.mp4 to see capabilities of Smartwatches to count bpm
-- Please check readme_data/interface.mp4 to see how person can interact with  Smartwatches through button interface
+Check [this](https://drive.google.com/drive/folders/13SoW0XQsbWE5jTyACCuYr9KU23wv3TMS?usp=sharing) folder with 3 videos to see how project looks like:
+- See bluetooth_communication.mp4 to see how smartphone communicates with Smartwatches
+- See bpm_counting.mp4 to see capabilities of Smartwatches to count bpm
+- See interface.mp4 to see how person can interact with  Smartwatches through button interface
 
 # Features under development
 - Step counting algorithm
