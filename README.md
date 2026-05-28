@@ -35,6 +35,16 @@ https://github.com/Ilyhadev/MPU6050_-GY-521-
 - RTC gets data and time from parsed byted received from android phone through bluetooth
 - Implemented menu navigation based on buttons (work on interruptions)
 
+# Comprehensive diagram of project
+
+![Smart_watchces_STM32F103](readme_data/Smart_watchces_STM32F103.jpg)
+For better quality please follow [this](https://miro.com/app/board/uXjVG1lzhco=/?share_link_id=381544303495) link on miro board.
+
+# Functionality show
+- Please check readme_data/bluetooth_communication.mp4 to see how smartphone communicates with Smartwatches
+- Please check readme_data/bpm_counting.mp4 to see capabilities of Smartwatches to count bpm
+- Please check readme_data/interface.mp4 to see how person can interact with  Smartwatches through button interface
+
 # Features under development
 - Step counting algorithm
 - FreeRtos integration
